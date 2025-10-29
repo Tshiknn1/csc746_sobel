@@ -75,7 +75,7 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
             gy_out += val_to_add + gy[count++];
         }
     }
-    
+
     return max(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
