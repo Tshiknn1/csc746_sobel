@@ -34,11 +34,11 @@ char output_fname[] = "../data/processed-raw-int8-4x-cpu.dat";
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
-   if (code != cudaSuccess)
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
 }
 
 //
@@ -58,13 +58,25 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 __device__ float
 sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, float *gy)
 {
+    // ADD CODE HERE:  add your code here for computing the sobel stencil computation at location (i,j)
+    // of input s, returning a float
 
-   float t=0.0;
+    if (i == 0 || i == ncols - 1 || j == 0 || j == nrows - 1) {
+        return 0.0f;
+    }
 
-   // ADD CODE HERE:  add your code here for computing the sobel stencil computation at location (i,j)
-   // of input s, returning a float
-
-   return t;
+    float gx_out = 0.0f;
+    float gy_out = 0.0f;
+    int count = 0;
+    for (int si = i - 1; si <= i + 1; si++) {
+        for (int sj = j - 1; sj <= j + 1; j++) {
+            float val_to_add = s[sj * ncols + si];
+            gx_out += val_to_add + gx[count];
+            gy_out += val_to_add + gy[count++];
+        }
+    }
+    
+    return max(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 //
@@ -84,106 +96,123 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
 
 __global__ void
 sobel_kernel_gpu(float *s,  // source image pixels
-      float *d,  // dst image pixels
-      int n,  // size of image cols*rows,
-      int nrows,
-      int ncols,
-      float *gx, float *gy) // gx and gy are stencil weights for the sobel filter
+        float *d,  // dst image pixels
+        int n,  // size of image cols*rows,
+        int nrows,
+        int ncols,
+        float *gx, float *gy) // gx and gy are stencil weights for the sobel filter
 {
-   // ADD CODE HERE: insert your code here that iterates over every (i,j) of input,  makes a call
-   // to sobel_filtered_pixel, and assigns the resulting value at location (i,j) in the output.
+    // ADD CODE HERE: insert your code here that iterates over every (i,j) of input,  makes a call
+    // to sobel_filtered_pixel, and assigns the resulting value at location (i,j) in the output.
 
-   // because this is CUDA, you need to use CUDA built-in variables to compute an index and stride
-   // your processing motif will be very similar here to that we used for vector add in Lab #2
+    // because this is CUDA, you need to use CUDA built-in variables to compute an index and stride
+    // your processing motif will be very similar here to that we used for vector add in Lab #2
+
+    // get block indices and dimensions
+    int matSize = nrows * ncols;
+    int totalThreads = blockDim.x * gridDim.x;
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int offset = idx;
+    int stride = totalThreads;
+
+    // strided memory access
+    for (int i = offset; i < nrows * ncols; i += stride) {
+        if (i < matSize) {
+            out[i] = sobel_filtered_pixel(in, i % nrows, i / nrows, ncols, nrows, Gx, Gy);
+        }
+    }
 }
 
 int
 main (int ac, char *av[])
 {
-   // input, output file names hard coded at top of file
+    // input, output file names hard coded at top of file
 
-   // load the input file
-   off_t nvalues = data_dims[0]*data_dims[1];
-   unsigned char *in_data_bytes = (unsigned char *)malloc(sizeof(unsigned char)*nvalues);
+    // load the input file
+    off_t nvalues = data_dims[0]*data_dims[1];
+    unsigned char *in_data_bytes = (unsigned char *)malloc(sizeof(unsigned char)*nvalues);
 
-   FILE *f = fopen(input_fname,"r");
-   if (fread((void *)in_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
-   {
-      printf("Error reading input file. \n");
-      fclose(f);
-      return 1;
-   }
-   else
-      printf(" Read data from the file %s \n", input_fname);
-   fclose(f);
+    FILE *f = fopen(input_fname,"r");
+    if (fread((void *)in_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
+    {
+        printf("Error reading input file. \n");
+        fclose(f);
+        return 1;
+    }
+    else
+        printf(" Read data from the file %s \n", input_fname);
+    fclose(f);
 
 #define ONE_OVER_255 0.003921568627451
 
-   // now convert input from byte, in range 0..255, to float, in range 0..1
-   float *in_data_floats;
-   gpuErrchk( cudaMallocManaged(&in_data_floats, sizeof(float)*nvalues) );
+    // now convert input from byte, in range 0..255, to float, in range 0..1
+    float *in_data_floats;
+    gpuErrchk( cudaMallocManaged(&in_data_floats, sizeof(float)*nvalues) );
 
-   for (off_t i=0; i<nvalues; i++)
-      in_data_floats[i] = (float)in_data_bytes[i] * ONE_OVER_255;
+    for (off_t i=0; i<nvalues; i++)
+        in_data_floats[i] = (float)in_data_bytes[i] * ONE_OVER_255;
 
-   // now, create a buffer for output
-   float *out_data_floats;
-   gpuErrchk( cudaMallocManaged(&out_data_floats, sizeof(float)*nvalues) );
-   for (int i=0;i<nvalues;i++)
-      out_data_floats[i] = 1.0;  // assign "white" to all output values for debug
+    // now, create a buffer for output
+    float *out_data_floats;
+    gpuErrchk( cudaMallocManaged(&out_data_floats, sizeof(float)*nvalues) );
+    for (int i=0;i<nvalues;i++)
+        out_data_floats[i] = 1.0;  // assign "white" to all output values for debug
 
-   // define sobel filter weights, copy to a device accessible buffer
-   float Gx[9] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
-   float Gy[9] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
-   float *device_gx, *device_gy;
-   gpuErrchk( cudaMallocManaged(&device_gx, sizeof(float)*sizeof(Gx)) );
-   gpuErrchk( cudaMallocManaged(&device_gy, sizeof(float)*sizeof(Gy)) );
+    // define sobel filter weights, copy to a device accessible buffer
+    float Gx[9] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
+    float Gy[9] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
+    float *device_gx, *device_gy;
+    gpuErrchk( cudaMallocManaged(&device_gx, sizeof(float)*sizeof(Gx)) );
+    gpuErrchk( cudaMallocManaged(&device_gy, sizeof(float)*sizeof(Gy)) );
 
-   for (int i=0;i<9;i++) // copy from Gx/Gy to device_gx/device_gy
-   {
-      device_gx[i] = Gx[i];
-      device_gy[i] = Gy[i];
-   }
-   
-   // now, induce memory movement to the GPU of the data in unified memory buffers
+    for (int i=0;i<9;i++) // copy from Gx/Gy to device_gx/device_gy
+    {
+        device_gx[i] = Gx[i];
+        device_gy[i] = Gy[i];
+    }
+    
+    // now, induce memory movement to the GPU of the data in unified memory buffers
 
-   int deviceID=0; // assume GPU#0, always. OK assumption for this program
-   cudaMemPrefetchAsync((void *)in_data_floats, nvalues*sizeof(float), deviceID);
-   cudaMemPrefetchAsync((void *)out_data_floats, nvalues*sizeof(float), deviceID);
-   cudaMemPrefetchAsync((void *)device_gx, sizeof(Gx)*sizeof(float), deviceID);
-   cudaMemPrefetchAsync((void *)device_gy, sizeof(Gy)*sizeof(float), deviceID);
+    int deviceID=0; // assume GPU#0, always. OK assumption for this program
+    cudaMemPrefetchAsync((void *)in_data_floats, nvalues*sizeof(float), deviceID);
+    cudaMemPrefetchAsync((void *)out_data_floats, nvalues*sizeof(float), deviceID);
+    cudaMemPrefetchAsync((void *)device_gx, sizeof(Gx)*sizeof(float), deviceID);
+    cudaMemPrefetchAsync((void *)device_gy, sizeof(Gy)*sizeof(float), deviceID);
 
-   // set up to run the kernel
-   int nBlocks=1, nThreadsPerBlock=256;
+    // set up to run the kernel
+    int nBlocks, nThreadsPerBlock;
 
-   // ADD CODE HERE: insert your code here to set a different number of thread blocks or # of threads per block
+    // ADD CODE HERE: insert your code here to set a different number of thread blocks or # of threads per block
 
+    nBlocks = atoi(av[1]);
+    nThreadsPerBlock = atoi(av[2]);
 
+    printf(" GPU configuration: %d blocks, %d threads per block \n", nBlocks, nThreadsPerBlock);
 
-   printf(" GPU configuration: %d blocks, %d threads per block \n", nBlocks, nThreadsPerBlock);
+    // invoke the kernel on the device
+    sobel_kernel_gpu<<<nBlocks, nThreadsPerBlock>>>(in_data_floats, out_data_floats, nvalues, data_dims[1], data_dims[0], device_gx, device_gy);
 
-   // invoke the kernel on the device
-   sobel_kernel_gpu<<<nBlocks, nThreadsPerBlock>>>(in_data_floats, out_data_floats, nvalues, data_dims[1], data_dims[0], device_gx, device_gy);
+    // wait for it to finish, check errors
+    gpuErrchk (  cudaDeviceSynchronize() );
 
-   // wait for it to finish, check errors
-   gpuErrchk (  cudaDeviceSynchronize() );
+    // write output after converting from floats in range 0..1 to bytes in range 0..255
+    unsigned char *out_data_bytes = in_data_bytes;  // just reuse the buffer from before
+    for (off_t i=0; i<nvalues; i++)
+        out_data_bytes[i] = (unsigned char)(out_data_floats[i] * 255.0);
 
-   // write output after converting from floats in range 0..1 to bytes in range 0..255
-   unsigned char *out_data_bytes = in_data_bytes;  // just reuse the buffer from before
-   for (off_t i=0; i<nvalues; i++)
-      out_data_bytes[i] = (unsigned char)(out_data_floats[i] * 255.0);
+    f = fopen(output_fname,"w");
 
-   f = fopen(output_fname,"w");
-
-   if (fwrite((void *)out_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
-   {
-      printf("Error writing output file. \n");
-      fclose(f);
-      return 1;
-   }
-   else
-      printf(" Wrote the output file %s \n", output_fname);
-   fclose(f);
+    if (fwrite((void *)out_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
+    {
+        printf("Error writing output file. \n");
+        fclose(f);
+        return 1;
+    }
+    else
+        printf(" Wrote the output file %s \n", output_fname);
+    fclose(f);
 }
 
 // eof

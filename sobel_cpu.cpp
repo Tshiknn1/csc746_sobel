@@ -44,12 +44,25 @@ char output_fname[] = "../data/processed-raw-int8-4x-cpu.dat";
 float
 sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, float *gy)
 {
-   float t=0.0;
+    // ADD CODE HERE: add your code here for computing the sobel stencil computation at location (i,j)
+    // of input s, returning a float
 
-   // ADD CODE HERE: add your code here for computing the sobel stencil computation at location (i,j)
-   // of input s, returning a float
+    if (i == 0 || i == ncols - 1 || j == 0 || j == nrows - 1) {
+        return 0.0f;
+    }
 
-   return t;
+    float gx_out = 0.0f;
+    float gy_out = 0.0f;
+    int count = 0;
+    for (int si = i - 1; si <= i + 1; si++) {
+        for (int sj = j - 1; sj <= j + 1; j++) {
+            float val_to_add = s[sj * ncols + si];
+            gx_out += val_to_add + gx[count];
+            gy_out += val_to_add + gy[count++];
+        }
+    }
+    
+    return max(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 
@@ -68,11 +81,18 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
 void
 do_sobel_filtering(float *in, float *out, int ncols, int nrows)
 {
-   float Gx[] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
-   float Gy[] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
+    float Gx[] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
+    float Gy[] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
 
-   // ADD CODE HERE: insert your code here that iterates over every (i,j) of input,  makes a call
-   // to sobel_filtered_pixel, and assigns the resulting value at location (i,j) in the output.
+    // ADD CODE HERE: insert your code here that iterates over every (i,j) of input,  makes a call
+    // to sobel_filtered_pixel, and assigns the resulting value at location (i,j) in the output.
+
+#pragma omp parallel for collapse(2)
+    for (int i = 0; i < ncols; i++) {
+        for (int j = 0; j < nrows; j++) {
+            out[i + j * ncols] = sobel_filtered_pixel(in, i, j, ncols, nrows, Gx, Gy);
+        }
+    }
 
 }
 
@@ -80,67 +100,67 @@ do_sobel_filtering(float *in, float *out, int ncols, int nrows)
 int
 main (int ac, char *av[])
 {
-   // filenames, etc, hard coded at the top of the file
-   // load input data
+    // filenames, etc, hard coded at the top of the file
+    // load input data
 //    char input_fname[]="../data/zebra-gray-raw-int8.dat";
 //   int data_dims[2] = {3556, 2573};
 //   char output_fname[] = "../data/processed-raw-int8-cpu.dat";
 
-   off_t nvalues = data_dims[0]*data_dims[1];
-   unsigned char *in_data_bytes = (unsigned char *)malloc(sizeof(unsigned char)*nvalues);
+    off_t nvalues = data_dims[0]*data_dims[1];
+    unsigned char *in_data_bytes = (unsigned char *)malloc(sizeof(unsigned char)*nvalues);
 
-   FILE *f = fopen(input_fname,"r");
-   if (f == NULL)
-   {
-      printf(" Error opening the input file: %s \n", input_fname);
-      return 1;
-   }
-   if (fread((void *)in_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
-   {
-      printf("Error reading input file. \n");
-      fclose(f);
-      return 1;
-   }
-   else
-      printf(" Read data from the file %s \n", input_fname);
-   fclose(f);
+    FILE *f = fopen(input_fname,"r");
+    if (f == NULL)
+    {
+        printf(" Error opening the input file: %s \n", input_fname);
+        return 1;
+    }
+    if (fread((void *)in_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
+    {
+        printf("Error reading input file. \n");
+        fclose(f);
+        return 1;
+    }
+    else
+        printf(" Read data from the file %s \n", input_fname);
+    fclose(f);
 
 #define ONE_OVER_255 0.003921568627451
 
-   // now convert from byte, in range 0..255, to float, in range 0..1
-   float *in_data_floats = (float *)malloc(sizeof(float)*nvalues);
-   for (off_t i=0; i<nvalues; i++)
-      in_data_floats[i] = (float)in_data_bytes[i] * ONE_OVER_255;
+    // now convert from byte, in range 0..255, to float, in range 0..1
+    float *in_data_floats = (float *)malloc(sizeof(float)*nvalues);
+    for (off_t i=0; i<nvalues; i++)
+        in_data_floats[i] = (float)in_data_bytes[i] * ONE_OVER_255;
 
-   // now, create a buffer for output
-   float *out_data_floats = (float *)malloc(sizeof(float)*nvalues);
+    // now, create a buffer for output
+    float *out_data_floats = (float *)malloc(sizeof(float)*nvalues);
 
-   // do the processing =======================
-   std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
+    // do the processing =======================
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
 
-   do_sobel_filtering(in_data_floats, out_data_floats, data_dims[0], data_dims[1]);
+    do_sobel_filtering(in_data_floats, out_data_floats, data_dims[0], data_dims[1]);
 
-   std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
 
-   std::chrono::duration<double> elapsed = end_time - start_time;
-   std::cout << " Elapsed time is : " << elapsed.count() << " " << std::endl;
+    std::chrono::duration<double> elapsed = end_time - start_time;
+    std::cout << " Elapsed time is : " << elapsed.count() << " " << std::endl;
 
-   // write output after converting from floats in range 0..1 to bytes in range 0..255
-   unsigned char *out_data_bytes = in_data_bytes;  // just reuse the buffer from before
-   for (off_t i=0; i<nvalues; i++)
-      out_data_bytes[i] = (unsigned char)(out_data_floats[i] * 255.0);
+    // write output after converting from floats in range 0..1 to bytes in range 0..255
+    unsigned char *out_data_bytes = in_data_bytes;  // just reuse the buffer from before
+    for (off_t i=0; i<nvalues; i++)
+        out_data_bytes[i] = (unsigned char)(out_data_floats[i] * 255.0);
 
-   f = fopen(output_fname,"w");
+    f = fopen(output_fname,"w");
 
-   if (fwrite((void *)out_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
-   {
-      printf("Error writing output file. \n");
-      fclose(f);
-      return 1;
-   }
-   else
-      printf(" Wrote the output file %s \n", output_fname);
-   fclose(f);
+    if (fwrite((void *)out_data_bytes, sizeof(unsigned char), nvalues, f) != nvalues*sizeof(unsigned char))
+    {
+        printf("Error writing output file. \n");
+        fclose(f);
+        return 1;
+    }
+    else
+        printf(" Wrote the output file %s \n", output_fname);
+    fclose(f);
 }
 
 // eof
