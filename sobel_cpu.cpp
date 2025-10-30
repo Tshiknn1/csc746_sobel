@@ -55,14 +55,14 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
     float gy_out = 0.0f;
     int count = 0;
     for (int si = i - 1; si <= i + 1; si++) {
-        for (int sj = j - 1; sj <= j + 1; j++) {
+        for (int sj = j - 1; sj <= j + 1; sj++) {
             float val_to_add = s[sj * ncols + si];
-            gx_out += val_to_add + gx[count];
-            gy_out += val_to_add + gy[count++];
+            gx_out += val_to_add * gx[count];
+            gy_out += val_to_add * gy[count++];
         }
     }
 
-    return max(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
+    return fmax(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 
