@@ -4,7 +4,7 @@
 // usage:
 //      sobel_cpu_omp_offload [no args, all is hard coded]
 //
-
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -57,14 +57,14 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
     float gy_out = 0.0f;
     int count = 0;
     for (int si = i - 1; si <= i + 1; si++) {
-        for (int sj = j - 1; sj <= j + 1; j++) {
+        for (int sj = j - 1; sj <= j + 1; sj++) {
             float val_to_add = s[sj * ncols + si];
-            gx_out += val_to_add + gx[count];
-            gy_out += val_to_add + gy[count++];
+            gx_out += val_to_add * gx[count];
+            gy_out += val_to_add * gy[count++];
         }
     }
 
-    return max(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
+    return fmax(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 //
@@ -84,7 +84,7 @@ do_sobel_filtering(float *in, float *out, int ncols, int nrows)
     float Gx[] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
     float Gy[] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
 
-    off_t out_indx = 0;
+    //off_t out_indx = 0;
     int width, height, nvals;
 
     width=ncols;
@@ -97,7 +97,7 @@ do_sobel_filtering(float *in, float *out, int ncols, int nrows)
 
 // ADD CODE HERE: you will need to add one more item to this line to map the "out" data array such that 
 // it is returned from the the device after the computation is complete. everything else here is input.
-#pragma omp target data map(to:in[0:nvals]) map(to:width) map(to:height) map(to:Gx[0:9]) map(to:Gy[0:9]) 
+#pragma omp target data map(to:in[0:nvals]) map(to:width) map(to:height) map(to:Gx[0:9]) map(to:Gy[0:9]) map(from:out[0:nvals]) 
     {
 
     // ADD CODE HERE: insert your code here that iterates over every (i,j) of input,  makes a call
