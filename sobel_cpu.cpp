@@ -5,6 +5,7 @@
 //      conv_harness_cpu [no args, all is hard coded]
 //
 
+#include <numeric>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -23,10 +24,11 @@
 //char output_fname[] = "../data/processed-raw-int8-cpu.dat";
 
 // this one is a 4x augmentation of the laughing zebra
-static char input_fname[] = "../data/zebra-gray-int8-4x";
+static char input_fname[] = "data/zebra-gray-int8-4x";
 static int data_dims[2] = {7112, 5146}; // width=ncols, height=nrows
-char output_fname[] = "../data/processed-raw-int8-4x-cpu.dat";
+char output_fname[] = "data/processed-raw-int8-4x-cpu.dat";
 
+float norm_val;
 
 //
 // sobel_filtered_pixel(): perform the sobel filtering at a given i,j location
@@ -62,7 +64,7 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
         }
     }
 
-    return fmax(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
+    return fmin(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 
@@ -84,14 +86,14 @@ do_sobel_filtering(float *in, float *out, int ncols, int nrows)
     float Gx[] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
     float Gy[] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
 
+    off_t nvals = ncols * nrows;
+
     // ADD CODE HERE: insert your code here that iterates over every (i,j) of input,  makes a call
     // to sobel_filtered_pixel, and assigns the resulting value at location (i,j) in the output.
 
-#pragma omp parallel for collapse(2)
-    for (int i = 0; i < ncols; i++) {
-        for (int j = 0; j < nrows; j++) {
-            out[i + j * ncols] = sobel_filtered_pixel(in, i, j, ncols, nrows, Gx, Gy);
-        }
+#pragma omp parallel for
+    for (off_t i = 0; i < nvals; i++) {
+        out[i] = sobel_filtered_pixel(in, i % ncols, i / ncols, ncols, nrows, Gx, Gy);
     }
 
 }

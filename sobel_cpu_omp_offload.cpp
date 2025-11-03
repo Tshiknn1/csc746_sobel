@@ -23,9 +23,9 @@
 //char output_fname[] = "../data/processed-raw-int8-cpu.dat";
 
 // this one is a 4x augmentation of the laughing zebra
-static char input_fname[] = "../data/zebra-gray-int8-4x";
+static char input_fname[] = "data/zebra-gray-int8-4x";
 static int data_dims[2] = {7112, 5146}; // width=ncols, height=nrows
-char output_fname[] = "../data/processed-raw-int8-4x-cpu.dat";
+char output_fname[] = "data/processed-raw-int8-4x-offload.dat";
 
 
 // see https://en.wikipedia.org/wiki/Sobel_operator
@@ -64,7 +64,7 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
         }
     }
 
-    return fmax(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
+    return fmin(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 //
@@ -85,11 +85,11 @@ do_sobel_filtering(float *in, float *out, int ncols, int nrows)
     float Gy[] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
 
     //off_t out_indx = 0;
-    int width, height, nvals;
+    int width, height;
 
     width=ncols;
     height=nrows;
-    nvals=width*height;
+    off_t nvals=width*height;
 
 // define the data mapping from the host to the device
 // some of the data we only need to send: in, Gx, Gy, width, height
@@ -106,11 +106,9 @@ do_sobel_filtering(float *in, float *out, int ncols, int nrows)
     // don't forget to include a    #pragma omp target teams parallel for around those loop(s).
     // You may also wish to consider additional clauses that might be appropriate here to increase parallelism 
     // if you are using nested loops.
-#pragma omp target teams parallel for collapse(2)
-        for (int i = 0; i < ncols; i++) {
-            for (int j = 0; j < nrows; j++) {
-                out[i + j * ncols] = sobel_filtered_pixel(in, i, j, ncols, nrows, Gx, Gy);
-            }
+#pragma omp target teams parallel for
+        for (off_t i = 0; i < nvals; i++) {
+            out[i] = sobel_filtered_pixel(in, i % ncols, i / ncols, ncols, nrows, Gx, Gy);
         }
 
 

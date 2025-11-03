@@ -25,9 +25,9 @@
 //char output_fname[] = "../data/processed-raw-int8-cpu.dat";
 
 // this one is a 4x augmentation of the laughing zebra
-static char input_fname[] = "../data/zebra-gray-int8-4x";
+static char input_fname[] = "data/zebra-gray-int8-4x";
 static int data_dims[2] = {7112, 5146}; // width=ncols, height=nrows
-char output_fname[] = "../data/processed-raw-int8-4x-cpu.dat";
+char output_fname[64];
 
 // see https://stackoverflow.com/questions/14038589/what-is-the-canonical-way-to-check-for-errors-using-the-cuda-runtime-api
 // macro to check for cuda errors. basic idea: wrap this macro around every cuda call
@@ -36,7 +36,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 {
     if (code != cudaSuccess)
     {
-        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        printf("GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
         if (abort) exit(code);
     }
 }
@@ -76,7 +76,7 @@ sobel_filtered_pixel(float *s, int i, int j , int ncols, int nrows, float *gx, f
         }
     }
 
-    return fmax(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
+    return fmin(sqrt(gx_out * gx_out + gy_out * gy_out), 1.0f);
 }
 
 //
@@ -109,19 +109,15 @@ sobel_kernel_gpu(float *s,  // source image pixels
     // your processing motif will be very similar here to that we used for vector add in Lab #2
 
     // get block indices and dimensions
-    int matSize = nrows * ncols;
     int totalThreads = blockDim.x * gridDim.x;
-
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     int offset = idx;
     int stride = totalThreads;
 
     // strided memory access
-    for (int i = offset; i < nrows * ncols; i += stride) {
-        if (i < matSize) {
-            d[i] = sobel_filtered_pixel(s, i % nrows, i / nrows, ncols, nrows, gx, gy);
-        }
+    for (off_t i = offset; i < n; i += stride) {
+        d[i] = sobel_filtered_pixel(s, i % ncols, i / ncols, ncols, nrows, gx, gy);
     }
 }
 
@@ -153,13 +149,13 @@ main (int ac, char *av[])
 
     for (off_t i=0; i<nvalues; i++)
         in_data_floats[i] = (float)in_data_bytes[i] * ONE_OVER_255;
-
+    
     // now, create a buffer for output
     float *out_data_floats;
     gpuErrchk( cudaMallocManaged(&out_data_floats, sizeof(float)*nvalues) );
     for (int i=0;i<nvalues;i++)
         out_data_floats[i] = 1.0;  // assign "white" to all output values for debug
-
+ 
     // define sobel filter weights, copy to a device accessible buffer
     float Gx[9] = {1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0};
     float Gy[9] = {1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0};
@@ -174,7 +170,6 @@ main (int ac, char *av[])
     }
     
     // now, induce memory movement to the GPU of the data in unified memory buffers
-
     int deviceID=0; // assume GPU#0, always. OK assumption for this program
     cudaMemPrefetchAsync((void *)in_data_floats, nvalues*sizeof(float), deviceID);
     cudaMemPrefetchAsync((void *)out_data_floats, nvalues*sizeof(float), deviceID);
@@ -185,9 +180,9 @@ main (int ac, char *av[])
     int nBlocks, nThreadsPerBlock;
 
     // ADD CODE HERE: insert your code here to set a different number of thread blocks or # of threads per block
-
-    nBlocks = atoi(av[1]);
-    nThreadsPerBlock = atoi(av[2]);
+    nBlocks = atoi(av[2]);
+    nThreadsPerBlock = atoi(av[1]);
+    sprintf(output_fname, "data/processed-gpu-n-%d-b-%d.dat", nBlocks, nThreadsPerBlock);
 
     printf(" GPU configuration: %d blocks, %d threads per block \n", nBlocks, nThreadsPerBlock);
 
@@ -199,8 +194,10 @@ main (int ac, char *av[])
 
     // write output after converting from floats in range 0..1 to bytes in range 0..255
     unsigned char *out_data_bytes = in_data_bytes;  // just reuse the buffer from before
-    for (off_t i=0; i<nvalues; i++)
+    for (off_t i=0; i<nvalues; i++) {
         out_data_bytes[i] = (unsigned char)(out_data_floats[i] * 255.0);
+        //printf("out_data_bytes at %ld : %.2f / %d\n", i, out_data_floats[i], out_data_bytes[i]);
+    }
 
     f = fopen(output_fname,"w");
 
