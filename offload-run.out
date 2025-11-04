@@ -1,20 +1,20 @@
 Successfully paused profiling.
 ncu --set basic  --metrics smsp__cycles_active.avg.pct_of_peak_sustained_elapsed,dram__throughput.avg.pct_of_peak_sustained_elapsed,gpu__time_duration.avg --replay-mode kernel  --launch-count 1 ./sobel_gpu  
-==PROF== Connected to process 2305775 (/pscratch/sd/t/tshiknn/cp5/build/sobel_cpu_omp_offload)
+==PROF== Connected to process 2319570 (/pscratch/sd/t/tshiknn/cp5/build/sobel_cpu_omp_offload)
 ==PROF== Profiling "nvkernel__Z18do_sobel_filteri..." - 0 (1/1): 0%....50%....100% - 12 passes
  Read data from the file data/zebra-gray-int8-4x 
- Elapsed time is : 2.5652 
+ Elapsed time is : 2.89534 
  Wrote the output file data/processed-raw-int8-4x-offload.dat 
-==PROF== Disconnected from process 2305775
-[2305775] sobel_cpu_omp_offload@127.0.0.1
+==PROF== Disconnected from process 2319570
+[2319570] sobel_cpu_omp_offload@127.0.0.1
   nvkernel__Z18do_sobel_filteringPfS_ii_F1L101_2 (285925, 1, 1)x(128, 1, 1), Context 1, Stream 13, Device 0, CC 8.0
     Section: Command line profiler metrics
     ----------------------------------------------------- ----------- ------------
     Metric Name                                           Metric Unit Metric Value
     ----------------------------------------------------- ----------- ------------
-    dram__throughput.avg.pct_of_peak_sustained_elapsed              %        28.22
-    gpu__time_duration.avg                                    usecond       644.61
-    smsp__cycles_active.avg.pct_of_peak_sustained_elapsed           %        99.56
+    dram__throughput.avg.pct_of_peak_sustained_elapsed              %        28.17
+    gpu__time_duration.avg                                    usecond       645.79
+    smsp__cycles_active.avg.pct_of_peak_sustained_elapsed           %        99.65
     ----------------------------------------------------- ----------- ------------
 
     Section: GPU Speed Of Light Throughput
@@ -23,14 +23,14 @@ ncu --set basic  --metrics smsp__cycles_active.avg.pct_of_peak_sustained_elapsed
     ----------------------- ------------- ------------
     DRAM Frequency          cycle/nsecond         1.21
     SM Frequency            cycle/nsecond         1.09
-    Elapsed Cycles                  cycle      705,765
-    Memory Throughput                   %        45.80
-    DRAM Throughput                     %        28.22
-    Duration                      usecond       644.61
-    L1/TEX Cache Throughput             %        45.96
-    L2 Cache Throughput                 %        35.24
-    SM Active Cycles                cycle   702,730.59
-    Compute (SM) Throughput             %        71.34
+    Elapsed Cycles                  cycle      707,016
+    Memory Throughput                   %        45.71
+    DRAM Throughput                     %        28.17
+    Duration                      usecond       645.79
+    L1/TEX Cache Throughput             %        45.86
+    L2 Cache Throughput                 %        35.22
+    SM Active Cycles                cycle   704,067.81
+    Compute (SM) Throughput             %        71.22
     ----------------------- ------------- ------------
 
     OPT   Compute is more heavily utilized than Memory: Look at the Compute Workload Analysis section to see what the   
@@ -65,8 +65,8 @@ ncu --set basic  --metrics smsp__cycles_active.avg.pct_of_peak_sustained_elapsed
     Block Limit Warps                     block           16
     Theoretical Active Warps per SM        warp           36
     Theoretical Occupancy                     %        56.25
-    Achieved Occupancy                        %        49.89
-    Achieved Active Warps Per SM           warp        31.93
+    Achieved Occupancy                        %        49.73
+    Achieved Active Warps Per SM           warp        31.83
     ------------------------------- ----------- ------------
 
     OPT   Est. Local Speedup: 43.75%                                                                                    
@@ -78,15 +78,15 @@ ncu --set basic  --metrics smsp__cycles_active.avg.pct_of_peak_sustained_elapsed
     -------------------------- ----------- ------------
     Metric Name                Metric Unit Metric Value
     -------------------------- ----------- ------------
-    Average DRAM Active Cycles       cycle   221,018.20
-    Total DRAM Elapsed Cycles        cycle   31,327,232
-    Average L1 Active Cycles         cycle   702,730.59
-    Total L1 Elapsed Cycles          cycle   76,151,548
-    Average L2 Active Cycles         cycle   670,005.49
-    Total L2 Elapsed Cycles          cycle   54,138,160
-    Average SM Active Cycles         cycle   702,730.59
-    Total SM Elapsed Cycles          cycle   76,151,548
-    Average SMSP Active Cycles       cycle   701,976.09
-    Total SMSP Elapsed Cycles        cycle  304,606,192
+    Average DRAM Active Cycles       cycle   221,026.40
+    Total DRAM Elapsed Cycles        cycle   31,383,040
+    Average L1 Active Cycles         cycle   704,067.81
+    Total L1 Elapsed Cycles          cycle   76,281,492
+    Average L2 Active Cycles         cycle   670,795.16
+    Total L2 Elapsed Cycles          cycle   54,229,200
+    Average SM Active Cycles         cycle   704,067.81
+    Total SM Elapsed Cycles          cycle   76,281,492
+    Average SMSP Active Cycles       cycle   703,804.31
+    Total SMSP Elapsed Cycles        cycle  305,125,968
     -------------------------- ----------- ------------
 

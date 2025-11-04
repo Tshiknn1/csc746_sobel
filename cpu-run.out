@@ -1,20 +1,20 @@
 Working on concurrency P=1
  Read data from the file data/zebra-gray-int8-4x 
- Elapsed time is : 0.232677 
+ Elapsed time is : 0.232702 
  Wrote the output file data/processed-raw-int8-4x-cpu.dat 
 Working on concurrency P=2
  Read data from the file data/zebra-gray-int8-4x 
- Elapsed time is : 0.119218 
+ Elapsed time is : 0.118304 
  Wrote the output file data/processed-raw-int8-4x-cpu.dat 
 Working on concurrency P=4
  Read data from the file data/zebra-gray-int8-4x 
- Elapsed time is : 0.060774 
+ Elapsed time is : 0.0598182 
  Wrote the output file data/processed-raw-int8-4x-cpu.dat 
 Working on concurrency P=8
  Read data from the file data/zebra-gray-int8-4x 
- Elapsed time is : 0.032728 
+ Elapsed time is : 0.0328645 
  Wrote the output file data/processed-raw-int8-4x-cpu.dat 
 Working on concurrency P=16
  Read data from the file data/zebra-gray-int8-4x 
- Elapsed time is : 0.0196182 
+ Elapsed time is : 0.0188494 
  Wrote the output file data/processed-raw-int8-4x-cpu.dat 
